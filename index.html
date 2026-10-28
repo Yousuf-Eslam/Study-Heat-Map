@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<meta name="theme-color" content="#11151b">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Focus</title>
+<style>
+:root{
+  --bg:#11151b; --panel:#181e27; --line:#262e3a; --text:#e8ecf2; --muted:#8793a6;
+  --accent:#ff6b4a; --l0:#1d242f; --l1:#0e4429; --l2:#006d32; --l3:#26a641; --l4:#39d353;
+  --cell:13px; --gap:3px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);min-height:100vh;min-height:100dvh}
+main{max-width:480px;margin:0 auto;padding:16px 18px 40px}
+.tabs{display:flex;gap:6px;background:var(--panel);padding:4px;border-radius:12px;margin-bottom:28px}
+.tabs button{flex:1;border:0;background:none;color:var(--muted);font:600 14px inherit;font-family:inherit;padding:10px 0;border-radius:9px}
+.tabs button.on{background:var(--line);color:var(--text)}
+.ringwrap{position:relative;width:min(78vw,300px);aspect-ratio:1;margin:0 auto}
+svg.ring{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10;stroke-linecap:round}
+.ring .track{stroke:var(--line)}
+.ring .prog{stroke:var(--accent);transition:stroke-dashoffset .4s linear,stroke .3s}
+.time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.time b{font-size:clamp(52px,17vw,68px);font-weight:300;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.time span{color:var(--muted);font-size:14px;margin-top:2px}
+.ctrl{display:flex;gap:12px;justify-content:center;margin:30px 0 12px}
+.ctrl button{font:600 17px inherit;font-family:inherit;border:0;border-radius:14px;padding:15px 0;color:var(--text);background:var(--panel)}
+#go{flex:2;max-width:200px;background:var(--accent);color:#1a0d09}
+#reset,#skip{flex:1;max-width:100px}
+.today{text-align:center;color:var(--muted);font-size:14px;margin-bottom:34px}
+.today b{color:var(--text)}
+h2{font-size:15px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.graph{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px}
+.scroll{overflow-x:auto;padding-bottom:6px;direction:ltr}
+.months{display:grid;grid-auto-flow:column;grid-auto-columns:calc(var(--cell) + var(--gap));font-size:11px;color:var(--muted);height:16px;margin-left:22px}
+.body{display:flex}
+.days{display:grid;grid-template-rows:repeat(7,var(--cell));gap:var(--gap);font-size:10px;color:var(--muted);width:22px;line-height:var(--cell)}
+.grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,var(--cell));grid-auto-columns:var(--cell);gap:var(--gap)}
+.c{width:var(--cell);height:var(--cell);border-radius:3px;background:var(--l0)}
+.c[data-l="1"]{background:var(--l1)}.c[data-l="2"]{background:var(--l2)}
+.c[data-l="3"]{background:var(--l3)}.c[data-l="4"]{background:var(--l4)}
+.c.sel{outline:2px solid var(--text);outline-offset:1px}
+.c.empty{background:none}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend{display:flex;align-items:center;gap:4px}
+.legend .c{width:11px;height:11px}
+#detail{min-height:18px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 26px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.stat b{display:block;font-size:24px;font-weight:600}
+.stat span{font-size:12px;color:var(--muted)}
+.set{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:26px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border-bottom:1px solid var(--line);font-size:15px}
+.row:last-child{border:0}
+.row input[type=number]{width:64px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px;font-size:15px;text-align:center}
+.row input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.danger{color:#ff7b72;background:none;border:0;font:inherit;padding:0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="tabs" role="tablist">
+    <button data-mode="focus" class="on">Focus</button>
+    <button data-mode="short">Short break</button>
+    <button data-mode="long">Long break</button>
+  </div>
+
+  <div class="ringwrap">
+    <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="track" cx="50" cy="50" r="45"/>
+      <circle class="prog" id="prog" cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="time"><b id="clock">25:00</b><span id="label">Ready to focus</span></div>
+  </div>
+
+  <div class="ctrl">
+    <button id="reset" aria-label="Reset">Reset</button>
+    <button id="go">Start</button>
+    <button id="skip" aria-label="Skip">Skip</button>
+  </div>
+  <div class="today"><b id="todayN">0</b> sessions today</div>
+
+  <h2>Study sessions</h2>
+  <p class="sub" id="yearSub"></p>
+  <div class="graph">
+    <div class="scroll" id="scroll">
+      <div style="display:inline-block">
+        <div class="months" id="months"></div>
+        <div class="body">
+          <div class="days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span id="detail">Tap a square for details</span>
+      <span class="legend">Less
+        <i class="c" data-l="0"></i><i class="c" data-l="1"></i><i class="c" data-l="2"></i><i class="c" data-l="3"></i><i class="c" data-l="4"></i>
+        More</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="sTotal">0</b><span>Total</span></div>
+    <div class="stat"><b id="sStreak">0</b><span>Day streak</span></div>
+    <div class="stat"><b id="sBest">0</b><span>Best day</span></div>
+  </div>
+
+  <div class="set">
+    <div class="row"><span>Focus (min)</span><input id="iFocus" type="number" min="1" max="180" inputmode="numeric"></div>
+    <div class="row"><span>Short break (min)</span><input id="iShort" type="number" min="1" max="60" inputmode="numeric"></div>
+    <div class="row"><span>Long break (min)</span><input id="iLong" type="number" min="1" max="90" inputmode="numeric"></div>
+    <div class="row"><span>Long break every</span><input id="iEvery" type="number" min="2" max="10" inputmode="numeric"></div>
+    <div class="row"><span>Auto-start next</span><input id="iAuto" type="checkbox"></div>
+    <div class="row"><span>Sound</span><input id="iSound" type="checkbox"></div>
+    <div class="row"><span>Clear all history</span><button class="danger" id="wipe">Clear</button></div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const KEY = "focus.v1";
+  const defaults = {focus:25, short:5, long:15, every:4, auto:false, sound:true};
+  let store = load();
+  function load(){
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) return {settings:{...defaults,...s.settings}, log:s.log||{}}; } catch(e){}
+    return {settings:{...defaults}, log:{}};
+  }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){} }
+
+  // ---------- date helpers (local time) ----------
+  const pad = n => String(n).padStart(2,"0");
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayKey = () => keyOf(new Date());
+
+  // ---------- timer ----------
+  const C = 2 * Math.PI * 45;
+  const prog = $("prog");
+  prog.style.strokeDasharray = C;
+  let mode = "focus", total = 0, remaining = 0, endAt = null, tick = null, doneInCycle = 0, wake = null;
+  const mins = m => store.settings[m] * 60;
+  const labels = {focus:"Focusing", short:"Short break", long:"Long break"};
+  const idle = {focus:"Ready to focus", short:"Take a breather", long:"Take a longer break"};
+
+  function setMode(m, keepRunning){
+    mode = m; stop();
+    total = remaining = mins(m);
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+    prog.style.stroke = m === "focus" ? "var(--accent)" : "#39d353";
+    render();
+  }
+  function render(){
+    const m = Math.floor(remaining/60), s = remaining % 60;
+    $("clock").textContent = `${pad(m)}:${pad(s)}`;
+    $("label").textContent = endAt ? labels[mode] : (remaining < total ? "Paused" : idle[mode]);
+    $("go").textContent = endAt ? "Pause" : (remaining < total ? "Resume" : "Start");
+    prog.style.strokeDashoffset = C * (1 - (total - remaining) / total);
+    document.title = endAt ? `${pad(m)}:${pad(s)} Focus` : "Focus";
+  }
+  async function lockScreen(){ try { if ("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); } catch(e){} }
+  function start(){
+    if (endAt) return;
+    endAt = Date.now() + remaining * 1000;
+    tick = setInterval(update, 250);
+    lockScreen(); render();
+  }
+  function stop(){
+    if (tick) clearInterval(tick); tick = null; endAt = null;
+    if (wake) { try { wake.release(); } catch(e){} wake = null; }
+  }
+  function pause(){ if(!endAt) return; update(); stop(); render(); }
+  function update(){
+    if (!endAt) return;
+    remaining = Math.max(0, Math.round((endAt - Date.now())/1000));
+    render();
+    if (remaining <= 0) finish();
+  }
+  function finish(){
+    const was = mode; stop(); chime(); if (navigator.vibrate) navigator.vibrate([200,100,200]);
+    if (was === "focus"){
+      const k = todayKey(); store.log[k] = (store.log[k]||0) + 1; save();
+      doneInCycle++; drawGraph(); stats();
+      setMode(doneInCycle % store.settings.every === 0 ? "long" : "short");
+    } else setMode("focus");
+    if (store.settings.auto) start();
+  }
+  function skip(){ stop(); setMode(mode === "focus" ? "short" : "focus"); }
+
+  // ---------- sound ----------
+  let ac;
+  function chime(){
+    if (!store.settings.sound) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      [660, 880, 1100].forEach((f,i) => {
+        const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i*0.18;
+        o.frequency.value = f; o.type = "sine"; o.connect(g); g.connect(ac.destination);
+        g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.25,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);
+        o.start(t); o.stop(t+0.45);
+      });
+    } catch(e){}
+  }
+
+  // ---------- contribution graph ----------
+  const level = n => n <= 0 ? 0 : n <= 2 ? 1 : n <= 4 ? 2 : n <= 6 ? 3 : 4;
+  let selected = null;
+  function drawGraph(){
+    const grid = $("grid"), months = $("months");
+    grid.innerHTML = ""; months.innerHTML = "";
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = new Date(today); start.setDate(start.getDate() - 52*7 - today.getDay()); // Sunday, 53 columns
+    const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let lastMonth = -1, sum = 0;
+    for (let w = 0; w < 53; w++){
+      const weekStart = new Date(start); weekStart.setDate(start.getDate() + w*7);
+      const mEl = document.createElement("span");
+      if (weekStart.getMonth() !== lastMonth && weekStart.getDate() <= 7){ mEl.textContent = names[weekStart.getMonth()]; lastMonth = weekStart.getMonth(); }
+      months.appendChild(mEl);
+      for (let d = 0; d < 7; d++){
+        const day = new Date(start); day.setDate(start.getDate() + w*7 + d);
+        const cell = document.createElement("i"); cell.className = "c";
+        if (day > today){ cell.classList.add("empty"); grid.appendChild(cell); continue; }
+        const k = keyOf(day), n = store.log[k] || 0; sum += n;
+        cell.dataset.l = level(n); cell.dataset.k = k;
+        if (k === selected) cell.classList.add("sel");
+        cell.addEventListener("click", () => {
+          selected = k; drawGraph();
+          const nice = day.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+          $("detail").textContent = `${n} session${n===1?"":"s"} on ${nice}`;
+        });
+        grid.appendChild(cell);
+      }
+    }
+    $("yearSub").textContent = `${sum} session${sum===1?"":"s"} in the last year`;
+    $("todayN").textContent = store.log[todayKey()] || 0;
+  }
+  function stats(){
+    const vals = Object.values(store.log);
+    $("sTotal").textContent = vals.reduce((a,b)=>a+b,0);
+    $("sBest").textContent = vals.length ? Math.max(...vals) : 0;
+    let streak = 0; const d = new Date(); d.setHours(0,0,0,0);
+    if (!store.log[keyOf(d)]) d.setDate(d.getDate()-1); // today not required yet
+    while (store.log[keyOf(d)]) { streak++; d.setDate(d.getDate()-1); }
+    $("sStreak").textContent = streak;
+  }
+
+  // ---------- settings ----------
+  const map = {iFocus:"focus", iShort:"short", iLong:"long", iEvery:"every"};
+  Object.entries(map).forEach(([id,k]) => {
+    $(id).value = store.settings[k];
+    $(id).addEventListener("change", e => {
+      const v = Math.max(+e.target.min, Math.min(+e.target.max, parseInt(e.target.value)||defaults[k]));
+      e.target.value = v; store.settings[k] = v; save();
+      if (!endAt && remaining === total) setMode(mode);
+    });
+  });
+  $("iAuto").checked = store.settings.auto; $("iSound").checked = store.settings.sound;
+  $("iAuto").onchange = e => { store.settings.auto = e.target.checked; save(); };
+  $("iSound").onchange = e => { store.settings.sound = e.target.checked; save(); };
+  $("wipe").onclick = () => { if (confirm("Delete all saved sessions?")) { store.log = {}; save(); selected = null; $("detail").textContent = "Tap a square for details"; drawGraph(); stats(); } };
+
+  // ---------- wiring ----------
+  $("go").onclick = () => { ac = ac || (window.AudioContext||window.webkitAudioContext ? new (window.AudioContext||window.webkitAudioContext)() : null); endAt ? pause() : start(); };
+  $("reset").onclick = () => setMode(mode);
+  $("skip").onclick = skip;
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden){ update(); if (endAt) lockScreen(); } });
+
+  setMode("focus"); drawGraph(); stats();
+  const sc = $("scroll"); sc.scrollLeft = sc.scrollWidth; // show most recent weeks
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
